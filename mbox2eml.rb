@@ -18,36 +18,43 @@ def convertfile(name)
   data = ""
   lastline = ""
 
-  
   begin
     File.open(name) do |file|
-      print "scan: #{sprintf("%04d", counter)}.eml"
-      file.each_line do |line|
-        if lastline.chomp == "" && line.index('From') == 0 then
-          if data != "" then
-            File.write(dirname + "/" + sprintf("%04d", counter) + ".eml", data)
+      eml_filename = "#{sprintf("%07d", counter)}.eml"
+      print "scan: #{eml_filename}"
+      eml_file = File.open(dirname + "/" + eml_filename, mode = "w")
+      if !eml_file then
+        print "Error: cannot open ${eml_file_name} for write"
+        return
+      end
+
+      file.each_slice(1000) do |chunk|
+        chunk.each do |line|
+          if lastline.chomp == "" && line.start_with?('From') then
+            eml_file.close
             print " => wrote\r\n"
-            data = line
+
             counter += 1
-            print "scan: #{sprintf("%04d", counter)}.eml"
+            eml_filename = "#{sprintf("%07d", counter)}.eml"
+            print "scan: #{eml_filename}"
+            eml_file = File.open(dirname + "/" + eml_filename, mode = "w")
+            if !eml_file then
+              print "Error: cannot open ${eml_file_name} for write"
+              return
+            end
           end
-        else
-          data += "#{line}"
+          eml_file.write(line)
+          lastline = line
         end
-        lastline = line
       end
     end
+
+    eml_file.close
+    print " => wrote\r\n"
   rescue SystemCallError => e
     pp e
   rescue IOError => e
     pp e
-  end
-  
-  if data != "" then
-    File.write(dirname + "/" + sprintf("%04d", counter) + ".eml", data)
-    print " => wrote\r\n"
-  else
-    print " => last mail not found\r\n"
   end
 end
 
